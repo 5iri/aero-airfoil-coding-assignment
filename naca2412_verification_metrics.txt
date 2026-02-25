@@ -1,0 +1,15 @@
+Local Cp-error locations (N=120, no-wall):
+alpha=0 deg: max |ΔCp| at x/c=0.144, min |ΔCp| at x/c=0.851
+alpha=4 deg: max |ΔCp| at x/c=0.101, min |ΔCp| at x/c=0.851
+alpha=8 deg: max |ΔCp| at x/c=0.010, min |ΔCp| at x/c=0.842
+
+Mean over alpha=0,4,8: max at x/c=0.101, min at x/c=0.851
+
+Panel-count trend metrics:
+N= 40: Cp_RMSE=0.3430, CL_RMSE=0.0851
+N= 60: Cp_RMSE=0.3310, CL_RMSE=0.0851
+N= 80: Cp_RMSE=0.3332, CL_RMSE=0.0851
+N=100: Cp_RMSE=0.3366, CL_RMSE=0.0851
+N=120: Cp_RMSE=0.3387, CL_RMSE=0.0851
+N=160: Cp_RMSE=0.3357, CL_RMSE=0.0851
+N=200: Cp_RMSE=0.3383, CL_RMSE=0.0851
