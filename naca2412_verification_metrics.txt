@@ -1,15 +1,19 @@
-Local Cp-error locations (N=120, no-wall):
-alpha=0 deg: max |ΔCp| at x/c=0.144, min |ΔCp| at x/c=0.851
-alpha=4 deg: max |ΔCp| at x/c=0.101, min |ΔCp| at x/c=0.851
-alpha=8 deg: max |ΔCp| at x/c=0.010, min |ΔCp| at x/c=0.842
+Verification metrics (Model vs XFOIL)
 
-Mean over alpha=0,4,8: max at x/c=0.101, min at x/c=0.851
+alpha=0 deg: Cp_RMSE=0.0489, CL_model=0.2576, CL_xfoil=0.2591, DeltaCL=-0.0015
+alpha=4 deg: Cp_RMSE=0.1077, CL_model=0.7388, CL_xfoil=0.7409, DeltaCL=-0.0021
+alpha=8 deg: Cp_RMSE=0.2366, CL_model=1.2164, CL_xfoil=1.2192, DeltaCL=-0.0027
 
-Panel-count trend metrics:
-N= 40: Cp_RMSE=0.3430, CL_RMSE=0.0851
-N= 60: Cp_RMSE=0.3310, CL_RMSE=0.0851
-N= 80: Cp_RMSE=0.3332, CL_RMSE=0.0851
-N=100: Cp_RMSE=0.3366, CL_RMSE=0.0851
-N=120: Cp_RMSE=0.3387, CL_RMSE=0.0851
-N=160: Cp_RMSE=0.3357, CL_RMSE=0.0851
-N=200: Cp_RMSE=0.3383, CL_RMSE=0.0851
+mean |DeltaCp| max location x/c=0.020
+mean |DeltaCp| min location x/c=0.272
+mean |DeltaCp|(c/4)=0.0726
+mean |DeltaCp|(3c/4)=0.1303
+
+Panel trend:
+N= 40: Cp_RMSE=0.1757, CL_RMSE=0.0355
+N= 60: Cp_RMSE=0.1686, CL_RMSE=0.0081
+N= 80: Cp_RMSE=0.1566, CL_RMSE=0.0024
+N=100: Cp_RMSE=0.1423, CL_RMSE=0.0030
+N=120: Cp_RMSE=0.1311, CL_RMSE=0.0020
+N=160: Cp_RMSE=0.1100, CL_RMSE=0.0006
+N=200: Cp_RMSE=0.0943, CL_RMSE=0.0008

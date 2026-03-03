@@ -11,7 +11,7 @@
 \setstretch{1.1}
 
 \title{Ground Effect on NACA 2412 Airfoil\\
-\large Detailed Procedure, Results, and Verification}
+\large Updated Surface-Panel Method, Verification, and Comparison with Legacy Results}
 \author{}
 \date{\today}
 
@@ -19,224 +19,346 @@
 \maketitle
 
 \begin{abstract}
-This report studies how ground height affects lift and pressure on a NACA 2412 airfoil. A 2D vortex-collocation model with image vortices is used. The report includes:
-(1) \(C_L\) vs. \(\alpha\),
-(2) \(C_p\) vs. \(x/c\) in the requested format (one panel per \(h/c\), multiple \(\alpha\) curves inside each panel),
-(3) \(\gamma\) vs. \(x/c\),
-and (4) a verification plot where model \(C_p\) is compared with XFOIL reference \(C_p\) from the published XFOIL method.
+This report studies ground effect on a NACA 2412 airfoil using an updated \textbf{surface-panel method} (upper and lower surfaces are both modeled), with image panels for the ground wall. I present:
+(1) $C_L$ vs. $\alpha$ for multiple $h/c$,
+(2) $C_p$ vs. $x/c$ in the requested grouping (one subplot per $h/c$, all requested $\alpha$ in each panel),
+(3) $\gamma$ distribution vs. $x/c$,
+and (4) verification against XFOIL for no-ground cases.
+
+I also keep the older camber-line figures in this report for side-by-side comparison.
 \end{abstract}
 
 \section{Objective}
-The goal is to quantify how changing \(h/c\) changes:
+The goal is to quantify how airfoil height from the ground changes:
 \begin{itemize}
-  \item lift coefficient \(C_L\),
-  \item pressure coefficient \(C_p\),
-  \item and vortex-sheet strength \(\gamma\).
+  \item lift coefficient $C_L$,
+  \item pressure coefficient $C_p$,
+  \item and circulation/sheet-strength trend ($\gamma$ proxy).
 \end{itemize}
 
-\section{Detailed Procedure and Methodology}
+\section{Procedure and Methodology (Updated)}
 \subsection{Airfoil and Cases}
 \begin{itemize}
   \item Airfoil: NACA 2412.
-  \item Chord: \(c=1\).
-  \item Heights: \(h/c \to \infty\) (no wall), \(1.00\), \(0.50\), \(0.15\).
+  \item Chord: $c = 1$.
+  \item Height cases: $h/c \to \infty$ (no wall), $1.00$, $0.50$, $0.15$.
   \item Angles:
   \begin{itemize}
-    \item \(C_L\): \(\alpha=-8^\circ\) to \(12^\circ\),
-    \item \(C_p,\gamma\): \(\alpha=-4^\circ,0^\circ,4^\circ,8^\circ,12^\circ\).
+    \item For $C_L$: $\alpha=-8^\circ$ to $12^\circ$,
+    \item For $C_p$ and $\gamma$: $\alpha=-4^\circ,0^\circ,4^\circ,8^\circ,12^\circ$.
   \end{itemize}
 \end{itemize}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.9\textwidth]{naca2412_setup_diagram.png}
-\caption{NACA 2412 setup diagram: airfoil placement for each \(h/c\) and ground wall at \(y=0\).}
-\label{fig:setup}
-\end{figure}
-
-\subsection{Numerical Model (step by step)}
+\subsection{Surface-Panel Model}
+The current solver is a Hess--Smith style 2D surface-panel method:
 \begin{enumerate}
-  \item The NACA 2412 camber line is defined from standard 4-digit equations.
-  \item The chord is split into \(N=120\) panels using cosine spacing (more points near leading edge).
-  \item On each panel:
-  \begin{itemize}
-    \item vortex point at quarter-panel location,
-    \item collocation point at three-quarter-panel location.
-  \end{itemize}
-  \item Normal and tangent vectors are computed at each collocation point.
-  \item The velocity influence of each vortex on each collocation point is assembled into a linear system.
-  \item Ground effect is added using image vortices across \(y=0\) with opposite sign.
-  \item No-penetration is enforced at all collocation points:
-  \[
-  \mathbf{A}\,\boldsymbol{\Gamma}=\mathbf{b}.
-  \]
-  \item The system is solved for panel strengths \(\Gamma_j\).
+  \item Generate full NACA 2412 geometry (closed trailing edge): upper and lower coordinates.
+  \item Split the full boundary into panels (cosine spacing in construction, then boundary panels).
+  \item Unknowns are panel source strengths $\sigma_j$ and one global vortex strength $\gamma$.
+  \item Enforce no-penetration at every panel control point.
+  \item Enforce Kutta condition at trailing edge using upper/lower trailing-edge offsets.
+  \item Solve one linear system for each angle of attack.
 \end{enumerate}
 
-\subsection{Post-processing Equations}
+\subsection{Panel-Method Formulation Used in the New Surface Code}
+For each case ($h/c$ and $\alpha$), the solver uses:
+\begin{itemize}
+  \item $N$ constant-strength source panels ($\sigma_j$, $j=1,\dots,N$),
+  \item one global vortex strength $\gamma$.
+\end{itemize}
+
+At each control point $i$, no-penetration is enforced:
+\[
+\sum_{j=1}^{N} A^{(\sigma)}_{ij}\sigma_j + A^{(\gamma)}_{i}\gamma
+= -\mathbf{V}_\infty\cdot\mathbf{n}_i,
+\]
+where $A^{(\sigma)}_{ij}$ and $A^{(\gamma)}_{i}$ are normal-velocity influence
+coefficients from source and vortex panels.
+
+The trailing-edge Kutta condition is written as equality of tangential behavior
+between upper and lower TE sides, giving one extra equation:
+\[
+\sum_{j=1}^{N} K^{(\sigma)}_j \sigma_j + K^{(\gamma)}\gamma
+= -\mathbf{V}_\infty\cdot(\mathbf{t}_{TE,u}+\mathbf{t}_{TE,l}).
+\]
+
+So each solve is an $(N+1)\times(N+1)$ linear system:
+\[
+\begin{bmatrix}
+\mathbf{A}^{(\sigma)} & \mathbf{A}^{(\gamma)}\\
+\mathbf{K}^{(\sigma)T} & K^{(\gamma)}
+\end{bmatrix}
+\begin{bmatrix}
+\boldsymbol{\sigma}\\ \gamma
+\end{bmatrix}
+=
+\begin{bmatrix}
+\mathbf{b}_n\\ b_K
+\end{bmatrix}.
+\]
+
+After solving for $(\boldsymbol{\sigma},\gamma)$:
+\begin{itemize}
+  \item velocity at near-surface sample points is reconstructed,
+  \item $C_p = 1-(V/U_\infty)^2$ is computed on upper/lower surfaces,
+  \item total circulation is $\Gamma_{tot}=\gamma\sum_j \Delta s_j$ and
+  $C_L=2\Gamma_{tot}/(U_\infty c)$.
+\end{itemize}
+
+\subsection{Ground-Effect Modeling}
+For finite $h/c$, image panels are added across $y=0$:
+\begin{itemize}
+  \item source image has same sign,
+  \item vortex image has opposite sign.
+\end{itemize}
+This enforces slip-wall behavior at the ground.
+
+\subsection{Post-Processing}
 \begin{itemize}
   \item Lift coefficient:
   \[
-  C_L = \frac{2\sum_j \Gamma_j}{U_\infty c}.
+  C_L = \frac{2\Gamma_{\text{total}}}{U_\infty c},\qquad
+  \Gamma_{\text{total}} = \gamma\sum_j \Delta s_j.
   \]
-  \item Sheet strength:
+  \item Surface pressure coefficient from local velocity:
   \[
-  \gamma_j = \frac{\Gamma_j}{\Delta s_j}.
+  C_p = 1 - \left(\frac{V}{U_\infty}\right)^2.
   \]
-  \item Upper-surface tangential speed:
-  \[
-  V_{t,\text{upper}} = V_{t,\text{line}} - \frac{\gamma}{2}.
-  \]
-  \item Pressure coefficient:
-  \[
-  C_p = 1 - \left(\frac{V_t}{U_\infty}\right)^2.
-  \]
+  \item The reported $\gamma$ plot is a useful circulation-trend diagnostic from upper/lower speed split.
 \end{itemize}
 
-\subsection{Verification Setup}
-To verify the \(C_p\) implementation, a no-ground case is compared against XFOIL \(C_p\) for the same airfoil and angles.
+\subsection{Verification Workflow}
+No-ground model outputs are compared with XFOIL (Drela, 1989):
 \begin{itemize}
-  \item Reference method: XFOIL (Drela, 1989).
-  \item Verification angles: \(\alpha=0^\circ,4^\circ,8^\circ\).
-  \item Comparison metric: RMSE between model and XFOIL \(C_p\) on common \(x/c\) overlap.
+  \item angles used: $\alpha = 0^\circ, 4^\circ, 8^\circ$,
+  \item compare upper-surface $C_p(x/c)$,
+  \item compute RMSE on overlap of the two $x/c$ grids,
+  \item also compare $C_L$ values.
 \end{itemize}
 
-\section{Results}
-\subsection{\(C_L\) vs \(\alpha\)}
+\section{Current Results (Surface-Panel)}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{naca2412_setup_diagram.png}
+\caption{NACA 2412: geometry and ground-effect setup used in the current surface-panel solver.}
+\label{fig:setup-current}
+\end{figure}
+
+\subsection{$C_L$ vs $\alpha$}
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{naca2412_cl_vs_alpha_heights.png}
-\caption{NACA 2412: \(C_L\) vs. \(\alpha\) for different \(h/c\).}
-\label{fig:cl}
+\caption{Current result: $C_L$ vs. $\alpha$ for different $h/c$.}
+\label{fig:cl-current}
 \end{figure}
 
 \begin{table}[H]
 \centering
-\caption{Linear fit from computed \(C_L\) curves.}
-\label{tab:clfit}
+\caption{Current linear fit from computed $C_L$ curves.}
+\label{tab:clfit-current}
 \begin{tabular}{lcc}
 \toprule
-Case & \(dC_L/d\alpha\) (per deg) & \(C_L\) at \(\alpha=0^\circ\) \\
+Case & $dC_L/d\alpha$ (per deg) & fitted $C_L$ at $\alpha=0^\circ$ \\
 \midrule
-No wall (\(h/c \to \infty\)) & 0.10911 & 0.22615 \\
-\(h/c = 1.00\) & 0.11435 & 0.23112 \\
-\(h/c = 0.50\) & 0.12763 & 0.24637 \\
-\(h/c = 0.15\) & 0.20244 & 0.34628 \\
+No wall ($h/c \to \infty$) & 0.11993 & 0.25588 \\
+$h/c = 1.00$ & 0.12658 & 0.25704 \\
+$h/c = 0.50$ & 0.14414 & 0.24559 \\
+$h/c = 0.15$ & 0.27086 & 0.03374 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{\(C_p\) vs \(x/c\)}
+\subsection{$C_p$ vs $x/c$ (requested grouping)}
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{naca2412_cp_vs_xc_by_height_all_alphas.png}
-\caption{NACA 2412: \(C_p\) vs. \(x/c\), grouped by \(h/c\), with all requested \(\alpha\) curves in each panel.}
-\label{fig:cp}
+\caption{Current result: $C_p$ vs. $x/c$, one panel per $h/c$, all requested $\alpha$ curves in each panel.}
+\label{fig:cp-current}
 \end{figure}
 
-\subsection{\(\gamma\) vs \(x/c\)}
+\subsection{$\gamma$ vs $x/c$}
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{naca2412_gamma_vs_xc_by_height_all_alphas.png}
-\caption{NACA 2412: \(\gamma\) distribution vs. \(x/c\), grouped by \(h/c\).}
-\label{fig:gamma}
+\caption{Current result: $\gamma$ distribution vs. $x/c$, grouped by $h/c$.}
+\label{fig:gamma-current}
 \end{figure}
 
-\section{Verification Against Literature Reference}
-Figure~\ref{fig:verify} compares model \(C_p\) and XFOIL \(C_p\) for the no-ground case.
-
+\section{Verification Against XFOIL (Current Surface-Panel Equations)}
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{naca2412_cp_verification_xfoil.png}
-\caption{Verification plot: model \(C_p\) vs. XFOIL \(C_p\) (NACA 2412, no ground).}
-\label{fig:verify}
+\caption{Current verification: model $C_p$ vs. XFOIL $C_p$ (no-ground case).}
+\label{fig:verify-current}
 \end{figure}
 
 \begin{table}[H]
 \centering
-\caption{Per-angle verification metrics (no-ground case).}
-\label{tab:verifyrmse}
+\caption{Current per-angle verification metrics (no-ground case).}
+\label{tab:verify-current}
 \begin{tabular}{lcccc}
 \toprule
-\(\alpha\) & \(C_p\) RMSE & \(C_{L,\text{model}}\) & \(C_{L,\text{XFOIL}}\) & \(\Delta C_L\) \\
+$\alpha$ & $C_p$ RMSE & $C_{L,\text{model}}$ & $C_{L,\text{XFOIL}}$ & $\Delta C_L$ \\
 \midrule
-\(0^\circ\) & 0.2719 & 0.2277 & 0.2591 & -0.0314 \\
-\(4^\circ\) & 0.3326 & 0.6655 & 0.7409 & -0.0754 \\
-\(8^\circ\) & 0.4117 & 1.1001 & 1.2192 & -0.1191 \\
+$0^\circ$ & 0.0489 & 0.2576 & 0.2591 & -0.0015 \\
+$4^\circ$ & 0.1077 & 0.7388 & 0.7409 & -0.0021 \\
+$8^\circ$ & 0.2366 & 1.2164 & 1.2192 & -0.0027 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection*{Interesting Point 1: Where the \(C_p\) difference is largest and smallest}
+\subsection*{Why there is still a small difference now}
+The difference is much smaller than before, but not exactly zero. This is expected, even with a surface-panel model:
+\begin{enumerate}
+  \item \textbf{Different numerical formulations:} this code uses one simple low-order panel setup (constant source strength on each surface panel plus one global circulation variable), while XFOIL uses a different panel and wake formulation with its own numerical details.
+  \item \textbf{Trailing-edge and wake treatment are not identical:} small changes in Kutta enforcement and wake modeling can shift both local $C_p$ and integrated $C_L$.
+  \item \textbf{Leading-edge sensitivity:} $C_p$ gradients are very steep near the leading edge, so small discretization differences create visible local error.
+  \item \textbf{Grid/interpolation mismatch:} RMSE is evaluated after interpolating two different $x/c$ point sets and clipping near LE/TE, which adds small numerical differences.
+\end{enumerate}
+
+So the current model and XFOIL are now close, but they are still not mathematically identical solvers.
+
+\subsection*{Error-location and panel-count insights (current)}
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.78\textwidth]{naca2412_cp_error_profile_no_wall.png}
-\caption{Mean absolute \(C_p\) difference along chord (no-ground, averaged over \(\alpha=0^\circ,4^\circ,8^\circ\)).}
-\label{fig:cperrorprofile}
+\caption{Current mean absolute $C_p$ difference along chord (no-ground, averaged over $\alpha=0^\circ,4^\circ,8^\circ$).}
+\label{fig:cperror-current}
 \end{figure}
 
-Using the no-ground verification set:
+Current statistics from the generated metrics file:
 \begin{itemize}
-  \item Mean max error occurs at \(x/c \approx 0.101\),
-  \item Mean min error occurs at \(x/c \approx 0.851\),
-  \item \(|\Delta C_p|(c/4)=0.4746\),
-  \item \(|\Delta C_p|(3c/4)=0.0804\).
+  \item Mean max error location: $x/c \approx 0.020$,
+  \item Mean min error location: $x/c \approx 0.272$,
+  \item $|\Delta C_p|(c/4)=0.0726$,
+  \item $|\Delta C_p|(3c/4)=0.1303$.
 \end{itemize}
 
-I observed that the model--XFOIL divergence is much larger near quarter-chord than near three-quarter-chord. To me, this makes physical sense: in a thin-airfoil/camber-line model, the front part of the chord is where thickness effects and leading-edge suction peak sensitivity are strongest, so errors are amplified there. Farther downstream, the pressure gradients are milder, so the mismatch reduces.
-
-\subsection*{Interesting Point 2: How accuracy changes with panel count}
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.78\textwidth]{naca2412_accuracy_vs_panels.png}
-\caption{No-ground accuracy trend vs panel count for model vs XFOIL.}
-\label{fig:paneltrend}
+\caption{Current no-wall accuracy trend vs panel count (model vs XFOIL).}
+\label{fig:paneltrend-current}
 \end{figure}
 
 \begin{table}[H]
 \centering
-\caption{Panel-count trend (no-ground): \(C_p\) RMSE and \(C_L\) RMSE.}
-\label{tab:paneltrend}
+\caption{Current panel-count trend (no-ground): $C_p$ RMSE and $C_L$ RMSE.}
+\label{tab:paneltrend-current}
 \begin{tabular}{lcc}
 \toprule
-\(N\) & \(C_p\) RMSE & \(C_L\) RMSE (\(\alpha=-8^\circ:12^\circ\)) \\
+$N$ & $C_p$ RMSE & $C_L$ RMSE ($\alpha=-8^\circ:12^\circ$) \\
 \midrule
-40  & 0.3430 & 0.0851 \\
-60  & 0.3310 & 0.0851 \\
-80  & 0.3332 & 0.0851 \\
-100 & 0.3366 & 0.0851 \\
-120 & 0.3387 & 0.0851 \\
-160 & 0.3357 & 0.0851 \\
-200 & 0.3383 & 0.0851 \\
+40  & 0.1757 & 0.0355 \\
+60  & 0.1686 & 0.0081 \\
+80  & 0.1566 & 0.0024 \\
+100 & 0.1423 & 0.0030 \\
+120 & 0.1311 & 0.0020 \\
+160 & 0.1100 & 0.0006 \\
+200 & 0.0943 & 0.0008 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Interpretation:
-\begin{itemize}
-  \item Increasing panel count gives only small improvement after about \(N\approx 60\).
-  \item So the main error source is not mesh density; it is model-form simplification (camber-line thin-airfoil representation).
-  \item XFOIL is more accurate because it solves flow on the full airfoil surface (with thickness) and uses a stronger aerodynamic formulation.
-\end{itemize}
+\subsection*{Old vs New improvement (camber-line to surface-panel)}
+To make the improvement explicit, I compared the legacy camber-line metrics with the current surface-panel metrics for the same no-ground verification cases.
 
-\section{Discussion}
+\begin{table}[H]
+\centering
+\caption{No-ground verification improvement from old to new model.}
+\label{tab:oldnew-verify}
+\begin{tabular}{lcccc}
+\toprule
+Metric & Old (camber-line) & New (surface-panel) & Absolute drop & Relative drop \\
+\midrule
+$C_p$ RMSE at $\alpha=0^\circ$ & 0.2719 & 0.0489 & 0.2230 & 82.0\% \\
+$C_p$ RMSE at $\alpha=4^\circ$ & 0.3326 & 0.1077 & 0.2249 & 67.6\% \\
+$C_p$ RMSE at $\alpha=8^\circ$ & 0.4117 & 0.2366 & 0.1751 & 42.5\% \\
+$|\Delta C_L|$ at $\alpha=0^\circ$ & 0.0314 & 0.0015 & 0.0299 & 95.2\% \\
+$|\Delta C_L|$ at $\alpha=4^\circ$ & 0.0754 & 0.0021 & 0.0733 & 97.2\% \\
+$|\Delta C_L|$ at $\alpha=8^\circ$ & 0.1191 & 0.0027 & 0.1164 & 97.7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Panel-trend comparison at $N=120$ (no-ground).}
+\label{tab:oldnew-panel120}
+\begin{tabular}{lcccc}
+\toprule
+Metric at $N=120$ & Old & New & Absolute drop & Relative drop \\
+\midrule
+$C_p$ RMSE (mean over $\alpha=0^\circ,4^\circ,8^\circ$) & 0.3387 & 0.1311 & 0.2076 & 61.3\% \\
+$C_L$ RMSE ($\alpha=-8^\circ:12^\circ$) & 0.0851 & 0.0020 & 0.0831 & 97.6\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This confirms the main point: switching to the full surface-panel equations removed most of the large mismatch that came from the camber-line simplification, while a smaller residual difference remains for the numerical reasons discussed above.
+
+\section{Legacy Camber-Line Figures (Kept for Comparison)}
+The following figures are the older camber-line based outputs. They are intentionally kept here so the evolution of the model can be shown in one report.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{legacy_camber_naca2412_cl_vs_alpha_heights.png}
+\caption{Legacy result: $C_L$ vs. $\alpha$ (camber-line model).}
+\label{fig:legacy-cl}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{legacy_camber_naca2412_cp_vs_xc_by_height_all_alphas.png}
+\caption{Legacy result: $C_p$ vs. $x/c$ (camber-line model).}
+\label{fig:legacy-cp}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{legacy_camber_naca2412_gamma_vs_xc_by_height_all_alphas.png}
+\caption{Legacy result: $\gamma$ vs. $x/c$ (camber-line model).}
+\label{fig:legacy-gamma}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{legacy_camber_naca2412_cp_verification_xfoil.png}
+\caption{Legacy verification: model $C_p$ vs XFOIL (camber-line model).}
+\label{fig:legacy-verify}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{legacy_camber_naca2412_cp_error_profile_no_wall.png}
+\caption{Legacy mean $|\Delta C_p|$ profile (camber-line model).}
+\label{fig:legacy-error}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{legacy_camber_naca2412_accuracy_vs_panels.png}
+\caption{Legacy panel-count trend (camber-line model).}
+\label{fig:legacy-trend}
+\end{figure}
+
+\section{Discussion and Inferences}
 \begin{enumerate}
-  \item \(C_L\) increases with \(\alpha\) for all heights.
-  \item As \(h/c\) decreases, the \(C_L\)-\(\alpha\) slope increases.
-  \item The strongest ground effect appears as we move the airfoil closer to the ground, which is also what we would intuitively expect.
-  \item \(C_p\) changes are strongest near the leading edge.
-  \item The verification trend matches shape and ordering from XFOIL, but differences are expected because this model is thin-airfoil based (camber-line, inviscid, no viscous effects).
+  \item $C_L$ increases with $\alpha$ for all heights.
+  \item The strongest ground effect appears as we move the airfoil closer to the ground (as intuitively expected).
+  \item The updated surface-panel model significantly reduces the XFOIL mismatch compared with the older camber-line model.
+  \item A small residual error remains because the two solvers still differ in panel formulation, Kutta/wake treatment, and numerical details.
 \end{enumerate}
 
 \section{Model Limits}
 \begin{itemize}
-  \item Inviscid model (no boundary layer, no separation, no stall).
-  \item 2D only (no finite-span effects).
-  \item Camber-line approximation is lower fidelity than full surface panel methods.
+  \item This is a 2D inviscid potential-flow framework.
+  \item No direct modeling of separation/stall physics.
+  \item Ground is modeled as a slip wall using image panels.
 \end{itemize}
 
 \section{Conclusion}
-The procedure captures the expected ground-effect trend: smaller \(h/c\) gives stronger lift response and stronger leading-edge suction behavior. The requested \(C_p\) layout is satisfied, and a verification plot against the published XFOIL method is included.
+After upgrading from camber-line to surface-panel modeling, the verification error against XFOIL is much smaller, which confirms the new equations are a better representation. At the same time, a small non-zero difference is still physically and numerically reasonable because the implementations are not identical.
 
 \section*{Reference}
 M. Drela, ``XFOIL: An Analysis and Design System for Low Reynolds Number Airfoils,'' in \textit{Low Reynolds Number Aerodynamics}, Springer, Lecture Notes in Engineering 54, 1989.
